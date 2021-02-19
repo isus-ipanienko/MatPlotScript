@@ -1,6 +1,8 @@
 ﻿import sys
 
-from PyQt5.QtWidgets import QDialog, QApplication, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit
+from PyQt5.QtWidgets import QDialog, QApplication, QVBoxLayout, QHBoxLayout, QWidget, QAction, QPushButton, QLineEdit, QTableWidget, QTableWidgetItem, QLabel
+from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import pyqtSlot
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
@@ -13,106 +15,130 @@ import random
 class Window(QDialog):
     def __init__(self, parent=None):
         super(Window, self).__init__(parent)
+        self.setWindowTitle("MatPlotScript")
+        self.row_count = None
+        self.col_count = None
+        self.data = [[],[]]
 
-        ### defaults
-        self.title = 'chart.csv'
-        self.delimiter = ','
-        self.pattern = '.-'
-        self.markersize = 10
-        self.x = []
-        self.y1 = []
-        self.y2 = []
-        self.y3 = []
-        self.y4 = []
+        ### user input setup
+        self.b_plot = QPushButton('Plot')
+        self.b_plot.clicked.connect(self.plot)
 
-        ### canvas setup
+        self.b_read = QPushButton('Read')
+        self.b_read.clicked.connect(self.read)
+        
+        self.l_path = QLabel('Path (relative or absolute):')
+        self.e_path = QLineEdit('chart.csv')
+        self.l_delimiter = QLabel('Delimiter:')
+        self.e_delimiter = QLineEdit(',')
+        self.l_title = QLabel('Title:')
+        self.e_title = QLineEdit('chart')
+        self.l_xlabel = QLabel('xlabel:')
+        self.e_xlabel = QLineEdit('xlabel')
+        self.l_ylabel = QLabel('ylabel:')
+        self.e_ylabel = QLineEdit('ylabel')
+        
+        self.input_box = QVBoxLayout()
+        self.input_box.addWidget(self.b_plot)
+        self.input_box.addWidget(self.b_read)
+        self.input_box.addWidget(self.l_path)
+        self.input_box.addWidget(self.e_path)
+        self.input_box.addWidget(self.l_delimiter)
+        self.input_box.addWidget(self.e_delimiter)
+        self.input_box.addWidget(self.l_title)
+        self.input_box.addWidget(self.e_title)
+        self.input_box.addWidget(self.l_xlabel)
+        self.input_box.addWidget(self.e_xlabel)
+        self.input_box.addWidget(self.l_ylabel)
+        self.input_box.addWidget(self.e_ylabel)
+
+
+        ### options setup
+        self.t_options = QTableWidget()
+        self.t_options.setRowCount(1)
+        self.t_options.setColumnCount(5)
+        self.t_options.setVerticalHeaderLabels(['Options'])
+        self.t_options.setItem(0,0, QTableWidgetItem('axis (x/y)'))
+        self.t_options.setItem(0,1, QTableWidgetItem('domain'))
+        self.t_options.setItem(0,2, QTableWidgetItem('colour'))
+        self.t_options.setItem(0,3, QTableWidgetItem('pattern'))
+        self.t_options.setItem(0,4, QTableWidgetItem('markersize'))
+
+
+        ### matplot setup
         self.figure = plt.figure()
         self.canvas = FigureCanvas(self.figure)
 
-        ### toolbar setup
         self.toolbar = NavigationToolbar(self.canvas, self)
 
-        ### user input setup
-        self.button = QPushButton('Plot')
-        self.button.clicked.connect(self.plot)
-        
-        self.e_path = QLineEdit('chart.csv')
-        self.e_path.textChanged[str].connect(self.pathchanged)
-        self.e_delimiter = QLineEdit(',')
-        self.e_delimiter.textChanged[str].connect(self.delimiterchanged)
-        self.e_pattern = QLineEdit('.-')
-        self.e_pattern.textChanged[str].connect(self.patternchanged)
-        self.e_markersize = QLineEdit('10')
-        self.e_markersize.textChanged[str].connect(self.mschanged)
-        
-        self.input_box = QHBoxLayout()
-        self.input_box.addWidget(self.button)
-        self.input_box.addWidget(self.e_path)
-        self.input_box.addWidget(self.e_delimiter)
-        self.input_box.addWidget(self.e_pattern)
-        self.input_box.addWidget(self.e_markersize)
+        self.matplot_box = QVBoxLayout()
+        self.matplot_box.addWidget(self.canvas)
+        self.matplot_box.addWidget(self.toolbar)
+
+
+        ### spreadsheet setup
+        self.t_spread = QTableWidget()
+
 
         ### layout setup
-        layout = QVBoxLayout()
-        layout.addWidget(self.toolbar)
-        layout.addWidget(self.canvas)
-        layout.addLayout(self.input_box)
-        self.setLayout(layout)
+        self.layout = QHBoxLayout()
+        self.layout.addLayout(self.input_box)
+        self.layout.addWidget(self.t_options)
+        self.layout.addLayout(self.matplot_box)
+        self.layout.addWidget(self.t_spread)
+        self.setLayout(self.layout)
         
-    def pathchanged(self, text):
-        self.title = text
 
-    def delimiterchanged(self, text):
-        self.delimiter = text
+    def read(self):
 
-    def patternchanged(self, text):
-        self.pattern = text
+        with open(self.e_path.text()) as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=self.e_delimiter.text())
+            self.data = list(csv_reader)
 
-    def mschanged(self, text):
-        self.markersize = int(text)
+            self.t_spread.setRowCount(len(self.data)-1)
+            self.row_count = len(self.data) - 1
+            self.t_spread.setColumnCount(len(self.data[0]))
+            self.col_count = len(self.data[0])
+            self.t_options.setRowCount(len(self.data[0])+1)
+
+            for row in range(5):
+                for element in range(len(self.data)-1):
+                    if row == 0:
+                        if element == 0:
+                            temp_item = QTableWidgetItem('x')
+                        else:
+                            temp_item = QTableWidgetItem('y')
+                    elif row == 1:
+                        temp_item = QTableWidgetItem('1')
+                    elif row == 2:
+                        if element == 1:
+                            temp_item = QTableWidgetItem('b')
+                        elif element == 2:
+                            temp_item = QTableWidgetItem('r')
+                        elif element == 3:
+                            temp_item = QTableWidgetItem('y')
+                        elif element == 4:
+                            temp_item = QTableWidgetItem('m')
+                        else:
+                            temp_item = QTableWidgetItem('g')
+                    elif row == 3:
+                        temp_item = QTableWidgetItem('.-')
+                    else:
+                        temp_item = QTableWidgetItem('10')
+
+                    self.t_options.setItem(element+1, row, temp_item)
+
+
+            for row in range(len(self.data)):
+                if row == 0:
+                    self.t_spread.setHorizontalHeaderLabels(self.data[0])
+                    self.t_options.setVerticalHeaderLabels(['Options'] + self.data[0])
+                else:
+                    for element in range(len(self.data[0])):
+                        self.t_spread.setItem(row-1,element, QTableWidgetItem(self.data[row][element]))
+
 
     def plot(self):
-        self.x = []
-        self.y1 = []
-        self.y2 = []
-        self.y3 = []
-        self.y4 = []
-        try:
-            #with open(f'C:/Users/pawel/Desktop/{self.title}') as csv_file:
-            with open(self.title) as csv_file:
-                csv_reader = csv.reader(csv_file, delimiter=self.delimiter)
-                line_count = 0
-                for row in csv_reader:
-                    #print(", ".join(row))
-                    if line_count == 0:
-                        self.x_t = row[0]
-                        self.y1_t = row[1]
-                        try:
-                            self.y2_t = row[2]
-                        except:
-                            self.y2_t = None
-                        try:
-                            self.y3_t = row[3]
-                        except:
-                            self.y3_t = None
-                        try:
-                            self.y4_t = row[4]
-                        except:               
-                            self.y4_t = None
-                    else:
-                        self.x.append(float(row[0]))
-                        self.y1.append(float(row[1]))
-                        if self.y2_t != None:
-                            self.y2.append(float(row[2]))
-                        if self.y3_t != None:
-                            self.y3.append(float(row[3]))
-                        if self.y4_t != None:
-                            self.y4.append(float(row[4]))
-                    line_count += 1
-                #print(f'Processed {line_count} lines.')
-        except:
-            self.x = [4]
-
 
         # clear figure
         self.figure.clear()
@@ -120,29 +146,37 @@ class Window(QDialog):
         # create an axis
         ax = self.figure.add_subplot(111)
 
-        # plot data
-        ax.plot(self.x, self.y1, 'b' + self.pattern, ms = self.markersize)
-        handle_tab = [mpatches.Patch(color='b', label=self.y1_t)]
-        if self.y2_t != None:
-            ax.plot(self.x, self.y2, 'r' + self.pattern, ms = self.markersize)
-            handle_tab.append(mpatches.Patch(color='r', label=self.y2_t))
-        if self.y3_t != None:
-            ax.plot(self.x, self.y3, 'y' + self.pattern, ms = self.markersize)
-            handle_tab.append(mpatches.Patch(color='y', label=self.y3_t))
-        if self.y4_t != None:
-            ax.plot(self.x, self.y4, 'm' + self.pattern, ms = self.markersize)
-            handle_tab.append(mpatches.Patch(color='m', label=self.y4_t))
+        # create domain map
+        domain_list = []
+        for col in range(self.col_count):
+            domain_list.append(self.t_options.item(col+1,0).text()+self.t_options.item(col+1,1).text()) 
         
-        ax.set_title(self.title.replace('_', ' ')[:-4])
-        ax.set_xlabel(self.x_t)
+        # plot data
+        handle_tab = []
+        for col in range(self.col_count):
+            if domain_list[col][0] == 'y':
+                temp_domain_index = domain_list.index('x' + domain_list[col][1]) # get index of x domain
+
+                temp_y = []
+                temp_x = []
+                for row in range(self.row_count):
+                    temp_y.append(float(self.data[row+1][col]))
+                    temp_x.append(float(self.data[row+1][temp_domain_index]))
+
+                #                            colour                                  pattern                                   markersize
+                ax.plot(temp_x, temp_y, self.t_options.item(col+1,2).text() + self.t_options.item(col+1,3).text(), ms = int(self.t_options.item(col+1,4).text()))
+                #                                                  colour                             label
+                handle_tab.append(mpatches.Patch(color=self.t_options.item(col+1,2).text(), label=self.data[0][col]))
+        
+        # draw legend
+        ax.set_title(self.e_title.text())
+        ax.set_xlabel(self.e_xlabel.text())
+        ax.set_ylabel(self.e_ylabel.text())
         ax.legend(handles=handle_tab)
         ax.grid(True)
         
         # refresh canvas
         self.canvas.draw()
-
-
-
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
