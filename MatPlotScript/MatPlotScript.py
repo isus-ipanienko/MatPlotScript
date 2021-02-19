@@ -1,16 +1,23 @@
 ﻿import sys
 
-from PyQt5.QtWidgets import QDialog, QApplication, QVBoxLayout, QHBoxLayout, QWidget, QAction, QPushButton, QLineEdit, QTableWidget, QTableWidgetItem, QLabel
+from PyQt5.QtWidgets import QDialog, QApplication, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QTableWidget, QTableWidgetItem, QLabel
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 
 import csv
-import random
+import numpy as np 
+import math as m 
+from scipy.optimize import curve_fit 
+
+
+### fitting function
+def scifunc(x, A, offset):
+    return A * np.sin(x/57.2957795) + offset 
+
 
 class Window(QDialog):
     def __init__(self, parent=None):
@@ -19,14 +26,15 @@ class Window(QDialog):
         self.row_count = None
         self.col_count = None
         self.data = [[],[]]
+        self.y_fit = []
 
         ### user input setup
+        # buttons
         self.b_plot = QPushButton('Plot')
-        self.b_plot.clicked.connect(self.plot)
-
+        self.b_plot.clicked.connect(lambda: self.plot('no_curve'))
         self.b_read = QPushButton('Read')
         self.b_read.clicked.connect(self.read)
-        
+        # labels
         self.l_path = QLabel('Path (relative or absolute):')
         self.e_path = QLineEdit('chart.csv')
         self.l_delimiter = QLabel('Delimiter:')
@@ -37,7 +45,7 @@ class Window(QDialog):
         self.e_xlabel = QLineEdit('xlabel')
         self.l_ylabel = QLabel('ylabel:')
         self.e_ylabel = QLineEdit('ylabel')
-        
+        # input_box
         self.input_box = QVBoxLayout()
         self.input_box.addWidget(self.b_plot)
         self.input_box.addWidget(self.b_read)
@@ -51,9 +59,43 @@ class Window(QDialog):
         self.input_box.addWidget(self.e_xlabel)
         self.input_box.addWidget(self.l_ylabel)
         self.input_box.addWidget(self.e_ylabel)
+        
+
+        ### curve_fit setup
+        # buttons
+        self.b_curve_plot = QPushButton('Plot with start params')
+        self.b_curve_plot.clicked.connect(lambda: self.plot('plot_curve'))
+        self.b_curve_calc = QPushButton('Calculate fit')
+        self.b_curve_calc.clicked.connect(lambda: self.plot('calc_curve'))
+        # labels
+        self.l_expression = QLabel('Expression params:')
+        self.e_expression = QLineEdit('3, 5')
+        self.l_x_curve = QLabel('x-axis (domain):')
+        self.e_x_curve = QLineEdit('x1')
+        self.l_y_curve = QLabel('y-axis (label):')
+        self.e_y_curve = QLineEdit('y1')
+        self.l_params = QLabel('Parameters:')
+        self.e_params = QLineEdit('')
+        # input_box
+        self.input_box.addWidget(self.b_curve_plot)
+        self.input_box.addWidget(self.b_curve_calc)
+        self.input_box.addWidget(self.l_expression)
+        self.input_box.addWidget(self.e_expression)
+        self.input_box.addWidget(self.l_x_curve)
+        self.input_box.addWidget(self.e_x_curve)
+        self.input_box.addWidget(self.l_y_curve)
+        self.input_box.addWidget(self.e_y_curve)
+        self.input_box.addWidget(self.l_params)
+        self.input_box.addWidget(self.e_params)
+
+
+        ### error_label
+        self.l_error = QLabel('Error: None')
+        self.input_box.addWidget(self.l_error)
 
 
         ### options setup
+        # t_options
         self.t_options = QTableWidget()
         self.t_options.setRowCount(1)
         self.t_options.setColumnCount(5)
@@ -66,34 +108,41 @@ class Window(QDialog):
 
 
         ### matplot setup
+        # figure
         self.figure = plt.figure()
+        # canvas
         self.canvas = FigureCanvas(self.figure)
-
+        # toolbar
         self.toolbar = NavigationToolbar(self.canvas, self)
-
+        # matplot_box
         self.matplot_box = QVBoxLayout()
         self.matplot_box.addWidget(self.canvas)
         self.matplot_box.addWidget(self.toolbar)
 
 
         ### spreadsheet setup
+        # t_spread
         self.t_spread = QTableWidget()
 
 
         ### layout setup
+        # layout
         self.layout = QHBoxLayout()
         self.layout.addLayout(self.input_box)
         self.layout.addWidget(self.t_options)
         self.layout.addLayout(self.matplot_box)
         self.layout.addWidget(self.t_spread)
         self.setLayout(self.layout)
-        
+
 
     def read(self):
 
         with open(self.e_path.text()) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=self.e_delimiter.text())
             self.data = list(csv_reader)
+            for row in range(1, len(self.data)):
+                for col in range(len(self.data[0])):
+                    self.data[row][col] = self.data[row][col].replace(' ','')
 
             self.t_spread.setRowCount(len(self.data)-1)
             self.row_count = len(self.data) - 1
@@ -138,7 +187,7 @@ class Window(QDialog):
                         self.t_spread.setItem(row-1,element, QTableWidgetItem(self.data[row][element]))
 
 
-    def plot(self):
+    def plot(self, curve):
 
         # clear figure
         self.figure.clear()
@@ -168,6 +217,48 @@ class Window(QDialog):
                 #                                                  colour                             label
                 handle_tab.append(mpatches.Patch(color=self.t_options.item(col+1,2).text(), label=self.data[0][col]))
         
+        # plot user fit
+        if curve == 'plot_curve':
+            temp_domain_index = domain_list.index(self.e_x_curve.text()) # get index of x domain
+            temp_y_index = self.data[0].index(self.e_y_curve.text()) # get index of y
+            
+            temp_x = []
+            for row in range(self.row_count):
+                temp_x.append(float(self.data[row+1][temp_domain_index]))
+            temp_x = np.array(temp_x)
+
+            temp_params = self.e_expression.text().split(', ') # user input
+            temp_params = [int(k) for k in temp_params]
+            temp_y = scifunc(temp_x, *temp_params)
+            
+            #                            colour                                 pattern                         markersize
+            ax.plot(temp_x, temp_y, self.t_options.item(temp_y_index+1,2).text() + '-', ms = int(self.t_options.item(temp_y_index+1,4).text()))
+            #                                                  colour                              label
+            handle_tab.append(mpatches.Patch(color=self.t_options.item(temp_y_index+1,2).text(), label=self.data[0][temp_y_index] + ' fit test'))
+        
+        # plot curve fit
+        if curve == 'calc_curve':
+            temp_domain_index = domain_list.index(self.e_x_curve.text()) # get index of x domain
+            temp_y_index = self.data[0].index(self.e_y_curve.text()) # get index of y
+            
+            temp_y = []
+            temp_x = []
+            for row in range(self.row_count):
+                temp_y.append(float(self.data[row+1][temp_y_index]))
+                temp_x.append(float(self.data[row+1][temp_domain_index]))
+            temp_y = np.array(temp_y)
+            temp_x = np.array(temp_x)
+
+            fit_params, covariance_matrix = curve_fit(scifunc, temp_y, temp_x)
+            
+            #                            colour                                 pattern                         markersize
+            ax.plot(temp_x, scifunc(temp_x, *fit_params), self.t_options.item(temp_y_index+1,2).text() + '-', ms = int(self.t_options.item(temp_y_index+1,4).text()))
+            #                                                  colour                              label
+            handle_tab.append(mpatches.Patch(color=self.t_options.item(temp_y_index+1,2).text(), label=self.data[0][temp_y_index] + ' fit'))
+
+            # output parameters
+            self.e_params.setText(str(fit_params))
+
         # draw legend
         ax.set_title(self.e_title.text())
         ax.set_xlabel(self.e_xlabel.text())
@@ -177,6 +268,7 @@ class Window(QDialog):
         
         # refresh canvas
         self.canvas.draw()
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
