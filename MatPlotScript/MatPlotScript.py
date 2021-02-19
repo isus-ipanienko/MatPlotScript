@@ -1,7 +1,65 @@
-﻿import matplotlib.patches as mpatches
+﻿import sys
+
+from PyQt5.QtWidgets import QDialog, QApplication, QPushButton, QVBoxLayout
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+
 import csv
-import sys
+import random
+
+class Window(QDialog):
+    def __init__(self, parent=None):
+        super(Window, self).__init__(parent)
+
+        # canvas setup
+        self.figure = plt.figure()
+        self.canvas = FigureCanvas(self.figure)
+
+        #toolbar setup
+        self.toolbar = NavigationToolbar(self.canvas, self)
+
+        # Just some button connected to `plot` method
+        self.button = QPushButton('Plot')
+        self.button.clicked.connect(self.plot)
+
+        # layout setup
+        layout = QVBoxLayout()
+        layout.addWidget(self.toolbar)
+        layout.addWidget(self.canvas)
+        layout.addWidget(self.button)
+        self.setLayout(layout)
+
+    def plot(self):
+
+        # clear figure
+        self.figure.clear()
+
+        # create an axis
+        ax = self.figure.add_subplot(111)
+
+        # plot data
+        ax.plot(x, y1, 'b' + pattern, ms = markersize)
+        handle_tab = [mpatches.Patch(color='b', label=y1_t)]
+        if y2_t != None:
+            ax.plot(x, y2, 'r' + pattern, ms = markersize)
+            handle_tab.append(mpatches.Patch(color='r', label=y2_t))
+        if y3_t != None:
+            ax.plot(x, y3, 'y' + pattern, ms = markersize)
+            handle_tab.append(mpatches.Patch(color='y', label=y3_t))
+        if y4_t != None:
+            ax.plot(x, y4, 'm' + pattern, ms = markersize)
+            handle_tab.append(mpatches.Patch(color='m', label=y4_t))
+        
+        ax.set_title(title.replace('_', ' ')[:-4])
+        ax.set_xlabel(x_t)
+        ax.legend(handles=handle_tab)
+        ax.grid(True)
+        
+        # refresh canvas
+        self.canvas.draw()
 
 
 title = input("Enter filename (default: 'chart.csv'): ")
@@ -25,7 +83,7 @@ y2 = []
 y3 = []
 y4 = []
 try:
-    with open(title) as csv_file:
+    with open(f'C:/Users/pawel/Desktop/{title}') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=delimiter)
         line_count = 0
         for row in csv_reader:
@@ -62,21 +120,11 @@ except:
     sys.exit()
 
 
-plt.plot(x, y1, 'b' + pattern, ms = markersize)
-handle_tab = [mpatches.Patch(color='b', label=y1_t)]
-if y2_t != None:
-    plt.plot(x, y2, 'r' + pattern, ms = markersize)
-    handle_tab.append(mpatches.Patch(color='r', label=y2_t))
-if y3_t != None:
-    plt.plot(x, y3, 'y' + pattern, ms = markersize)
-    handle_tab.append(mpatches.Patch(color='y', label=y3_t))
-if y4_t != None:
-    plt.plot(x, y4, 'm' + pattern, ms = markersize)
-    handle_tab.append(mpatches.Patch(color='m', label=y4_t))
 
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
 
-plt.title(title.replace('_', ' ')[:-4])
-plt.xlabel(x_t)
-plt.legend(handles=handle_tab)
-plt.grid()
-plt.show()
+    main = Window()
+    main.show()
+
+    sys.exit(app.exec_())
