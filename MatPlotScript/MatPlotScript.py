@@ -16,12 +16,13 @@ from scipy.optimize import curve_fit
 
 ### fitting function
 def scifunc(x, A, offset):
-    return A * np.sin(x/57.2957795) + offset 
+    return A * np.sin(2*x/57.2957795) + offset 
 
 
 class Window(QDialog):
     def __init__(self, parent=None):
         super(Window, self).__init__(parent)
+        self.setAcceptDrops(True)
         self.setWindowTitle("MatPlotScript")
         self.row_count = None
         self.col_count = None
@@ -35,7 +36,7 @@ class Window(QDialog):
         self.b_read = QPushButton('Read')
         self.b_read.clicked.connect(self.read)
         # labels
-        self.l_path = QLabel('Path (relative or absolute):')
+        self.l_path = QLabel('Path (drag and drop):')
         self.e_path = QLineEdit('chart.csv')
         self.l_delimiter = QLabel('Delimiter:')
         self.e_delimiter = QLineEdit(',')
@@ -136,55 +137,59 @@ class Window(QDialog):
 
 
     def read(self):
+        try:
+            with open(self.e_path.text()) as csv_file:
+                csv_reader = csv.reader(csv_file, delimiter=self.e_delimiter.text())
+                self.data = list(csv_reader)
+                for row in range(1, len(self.data)):
+                    for col in range(len(self.data[0])):
+                        self.data[row][col] = self.data[row][col].replace(' ','')
 
-        with open(self.e_path.text()) as csv_file:
-            csv_reader = csv.reader(csv_file, delimiter=self.e_delimiter.text())
-            self.data = list(csv_reader)
-            for row in range(1, len(self.data)):
-                for col in range(len(self.data[0])):
-                    self.data[row][col] = self.data[row][col].replace(' ','')
+                self.t_spread.setRowCount(len(self.data)-1)
+                self.row_count = len(self.data) - 1
+                self.t_spread.setColumnCount(len(self.data[0]))
+                self.col_count = len(self.data[0])
+                self.t_options.setRowCount(len(self.data[0])+1)
 
-            self.t_spread.setRowCount(len(self.data)-1)
-            self.row_count = len(self.data) - 1
-            self.t_spread.setColumnCount(len(self.data[0]))
-            self.col_count = len(self.data[0])
-            self.t_options.setRowCount(len(self.data[0])+1)
+                for row in range(5):
+                    for element in range(len(self.data)-1):
+                        if row == 0:
+                            if element == 0:
+                                temp_item = QTableWidgetItem('x')
+                            else:
+                                temp_item = QTableWidgetItem('y')
+                        elif row == 1:
+                            temp_item = QTableWidgetItem('1')
+                        elif row == 2:
+                            if element == 1:
+                                temp_item = QTableWidgetItem('b')
+                            elif element == 2:
+                                temp_item = QTableWidgetItem('r')
+                            elif element == 3:
+                                temp_item = QTableWidgetItem('y')
+                            elif element == 4:
+                                temp_item = QTableWidgetItem('m')
+                            else:
+                                temp_item = QTableWidgetItem('g')
+                        elif row == 3:
+                            temp_item = QTableWidgetItem('.-')
+                        else:
+                            temp_item = QTableWidgetItem('10')
 
-            for row in range(5):
-                for element in range(len(self.data)-1):
+                        self.t_options.setItem(element+1, row, temp_item)
+
+
+                for row in range(len(self.data)):
                     if row == 0:
-                        if element == 0:
-                            temp_item = QTableWidgetItem('x')
-                        else:
-                            temp_item = QTableWidgetItem('y')
-                    elif row == 1:
-                        temp_item = QTableWidgetItem('1')
-                    elif row == 2:
-                        if element == 1:
-                            temp_item = QTableWidgetItem('b')
-                        elif element == 2:
-                            temp_item = QTableWidgetItem('r')
-                        elif element == 3:
-                            temp_item = QTableWidgetItem('y')
-                        elif element == 4:
-                            temp_item = QTableWidgetItem('m')
-                        else:
-                            temp_item = QTableWidgetItem('g')
-                    elif row == 3:
-                        temp_item = QTableWidgetItem('.-')
+                        self.t_spread.setHorizontalHeaderLabels(self.data[0])
+                        self.t_options.setVerticalHeaderLabels(['Options'] + self.data[0])
                     else:
-                        temp_item = QTableWidgetItem('10')
-
-                    self.t_options.setItem(element+1, row, temp_item)
-
-
-            for row in range(len(self.data)):
-                if row == 0:
-                    self.t_spread.setHorizontalHeaderLabels(self.data[0])
-                    self.t_options.setVerticalHeaderLabels(['Options'] + self.data[0])
-                else:
-                    for element in range(len(self.data[0])):
-                        self.t_spread.setItem(row-1,element, QTableWidgetItem(self.data[row][element]))
+                        for element in range(len(self.data[0])):
+                            self.t_spread.setItem(row-1,element, QTableWidgetItem(self.data[row][element]))
+        except:
+            self.l_error.setText('wrong file name')
+            return
+        
 
 
     def plot(self, curve):
@@ -197,20 +202,32 @@ class Window(QDialog):
 
         # create domain map
         domain_list = []
-        for col in range(self.col_count):
-            domain_list.append(self.t_options.item(col+1,0).text()+self.t_options.item(col+1,1).text()) 
+        try:
+            for col in range(self.col_count):
+                domain_list.append(self.t_options.item(col+1,0).text()+self.t_options.item(col+1,1).text()) 
+        except:
+                self.l_error.setText('no data')
+                return
         
         # plot data
         handle_tab = []
         for col in range(self.col_count):
             if domain_list[col][0] == 'y':
-                temp_domain_index = domain_list.index('x' + domain_list[col][1]) # get index of x domain
+                try:
+                    temp_domain_index = domain_list.index('x' + domain_list[col][1]) # get index of x domain
+                except:
+                    self.l_error.setText('missing domain')
+                    return
 
                 temp_y = []
                 temp_x = []
-                for row in range(self.row_count):
-                    temp_y.append(float(self.data[row+1][col]))
-                    temp_x.append(float(self.data[row+1][temp_domain_index]))
+                try:
+                    for row in range(self.row_count):
+                        temp_y.append(float(self.data[row+1][col]))
+                        temp_x.append(float(self.data[row+1][temp_domain_index]))
+                except:
+                    self.l_error.setText('chart ValueError')
+                    return
 
                 #                            colour                                  pattern                                   markersize
                 ax.plot(temp_x, temp_y, self.t_options.item(col+1,2).text() + self.t_options.item(col+1,3).text(), ms = int(self.t_options.item(col+1,4).text()))
@@ -219,17 +236,33 @@ class Window(QDialog):
         
         # plot user fit
         if curve == 'plot_curve':
-            temp_domain_index = domain_list.index(self.e_x_curve.text()) # get index of x domain
-            temp_y_index = self.data[0].index(self.e_y_curve.text()) # get index of y
+            try:
+                temp_domain_index = domain_list.index(self.e_x_curve.text()) # get index of x domain
+                temp_y_index = self.data[0].index(self.e_y_curve.text()) # get index of y
+            except:
+                    self.l_error.setText('missing domain')
+                    return
             
-            temp_x = []
-            for row in range(self.row_count):
-                temp_x.append(float(self.data[row+1][temp_domain_index]))
-            temp_x = np.array(temp_x)
+            try:
+                temp_x = []
+                for row in range(self.row_count):
+                    temp_x.append(float(self.data[row+1][temp_domain_index]))
+                temp_x = np.array(temp_x)
+            except:
+                    self.l_error.setText('chart ValueError')
+                    return
 
-            temp_params = self.e_expression.text().split(', ') # user input
-            temp_params = [int(k) for k in temp_params]
-            temp_y = scifunc(temp_x, *temp_params)
+            try:
+                temp_params = self.e_expression.text().split(', ') # user input
+                temp_params = [int(k) for k in temp_params]
+            except:
+                    self.l_error.setText('params ValueError')
+                    return
+            try:
+                temp_y = scifunc(temp_x, *temp_params)
+            except:
+                    self.l_error.setText('wrong params')
+                    return
             
             #                            colour                                 pattern                         markersize
             ax.plot(temp_x, temp_y, self.t_options.item(temp_y_index+1,2).text() + '-', ms = int(self.t_options.item(temp_y_index+1,4).text()))
@@ -238,19 +271,31 @@ class Window(QDialog):
         
         # plot curve fit
         if curve == 'calc_curve':
-            temp_domain_index = domain_list.index(self.e_x_curve.text()) # get index of x domain
-            temp_y_index = self.data[0].index(self.e_y_curve.text()) # get index of y
-            
+            try:
+                temp_domain_index = domain_list.index(self.e_x_curve.text()) # get index of x domain
+                temp_y_index = self.data[0].index(self.e_y_curve.text()) # get index of y
+            except:
+                    self.l_error.setText('missing domain')
+                    return
+        
             temp_y = []
             temp_x = []
-            for row in range(self.row_count):
-                temp_y.append(float(self.data[row+1][temp_y_index]))
-                temp_x.append(float(self.data[row+1][temp_domain_index]))
-            temp_y = np.array(temp_y)
-            temp_x = np.array(temp_x)
-
-            fit_params, covariance_matrix = curve_fit(scifunc, temp_y, temp_x)
-            
+            try:
+                for row in range(self.row_count):
+                    temp_y.append(float(self.data[row+1][temp_y_index]))
+                    temp_x.append(float(self.data[row+1][temp_domain_index]))
+                temp_y = np.array(temp_y)
+                temp_x = np.array(temp_x)
+            except:
+                    self.l_error.setText('chart ValueError')
+                    return
+        
+            try:
+                fit_params, covariance_matrix = curve_fit(scifunc, temp_y, temp_x)
+            except:
+                    self.l_error.setText('mismatched domain')
+                    return
+        
             #                            colour                                 pattern                         markersize
             ax.plot(temp_x, scifunc(temp_x, *fit_params), self.t_options.item(temp_y_index+1,2).text() + '-', ms = int(self.t_options.item(temp_y_index+1,4).text()))
             #                                                  colour                              label
@@ -260,15 +305,32 @@ class Window(QDialog):
             self.e_params.setText(str(fit_params))
 
         # draw legend
-        ax.set_title(self.e_title.text())
-        ax.set_xlabel(self.e_xlabel.text())
-        ax.set_ylabel(self.e_ylabel.text())
+        try:
+            ax.set_title(self.e_title.text())
+        except:
+            self.l_error.setText('title error')
+            return
+        try:
+            ax.set_xlabel(self.e_xlabel.text())
+        except:
+            self.l_error.setText('xlabel error')
+            return
+        try:
+            ax.set_ylabel(self.e_ylabel.text())
+        except:
+            self.l_error.setText('ylabel error')
+            return
         ax.legend(handles=handle_tab)
         ax.grid(True)
         
         # refresh canvas
         self.canvas.draw()
 
+    def dragEnterEvent(self, e):
+        e.accept()
+
+    def dropEvent(self, e):
+        self.e_path.setText(e.mimeData().text()[8:])
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
