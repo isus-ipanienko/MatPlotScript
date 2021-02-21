@@ -1,6 +1,6 @@
 ﻿import sys
 
-from PyQt5.QtWidgets import QDialog, QApplication, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QTableWidget, QTableWidgetItem, QLabel
+from PyQt5.QtWidgets import QDialog, QApplication, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QTableWidget, QTableWidgetItem, QLabel, QCheckBox
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -56,6 +56,9 @@ class Window(QDialog):
         self.e_xlabel = QLineEdit('xlabel')
         self.l_ylabel = QLabel('ylabel:')
         self.e_ylabel = QLineEdit('ylabel')
+        self.l_legend = QLabel('Legend:')
+        self.cb_legend = QCheckBox()
+        self.cb_legend.setChecked(True)
         # input_box
         self.input_box = QVBoxLayout()
         self.input_box.addWidget(self.t_options)
@@ -77,6 +80,8 @@ class Window(QDialog):
         self.right_input_box.addWidget(self.e_xlabel)
         self.left_input_box.addWidget(self.l_ylabel)
         self.right_input_box.addWidget(self.e_ylabel)
+        self.left_input_box.addWidget(self.l_legend)
+        self.right_input_box.addWidget(self.cb_legend)
         
 
         ### curve_fit setup
@@ -87,8 +92,6 @@ class Window(QDialog):
         # labels
         self.l_expression = QLabel('Significant numbers:')
         self.e_expression = QLineEdit('3')
-        self.l_x_curve = QLabel('x-axis (domain):')
-        self.e_x_curve = QLineEdit('x1')
         self.l_y_curve = QLabel('y-axis (label):')
         self.e_y_curve = QLineEdit('y1')
         self.l_params = QLabel('Fit params:')
@@ -98,8 +101,6 @@ class Window(QDialog):
         self.right_input_box.addWidget(self.b_curve_calc)
         self.left_input_box.addWidget(self.l_expression)
         self.right_input_box.addWidget(self.e_expression)
-        self.left_input_box.addWidget(self.l_x_curve)
-        self.right_input_box.addWidget(self.e_x_curve)
         self.left_input_box.addWidget(self.l_y_curve)
         self.right_input_box.addWidget(self.e_y_curve)
         self.left_input_box.addWidget(self.l_params)
@@ -216,7 +217,7 @@ class Window(QDialog):
         for col in range(self.col_count):
             if domain_list[col][0] == 'y':
                 try:
-                    temp_domain_index = domain_list.index('x' + domain_list[col][1]) # get index of x domain
+                    temp_domain_index = domain_list.index('x' + domain_list[col][1:]) # get index of x domain
                 except:
                     self.l_error.setText('missing domain')
                     return
@@ -275,8 +276,8 @@ class Window(QDialog):
         # plot linear regression
         if curve == 'calc_curve':
             try:
-                temp_domain_index = domain_list.index(self.e_x_curve.text()) # get index of x domain
                 temp_y_index = self.data[0].index(self.e_y_curve.text()) # get index of y
+                temp_domain_index = domain_list.index('x' + domain_list[temp_y_index][1:]) # get index of x domain
             except:
                     self.l_error.setText('missing domain')
                     return
@@ -326,7 +327,8 @@ class Window(QDialog):
         except:
             self.l_error.setText('ylabel error')
             return
-        ax.legend(handles=handle_tab)
+        if self.cb_legend.isChecked():
+            ax.legend(handles=handle_tab)
         ax.grid(True)
         
         # refresh canvas
