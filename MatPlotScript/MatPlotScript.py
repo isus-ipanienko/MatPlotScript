@@ -25,7 +25,7 @@ class Window(QDialog):
         self.y_fit = []
 
 
-        ### options setup
+        ### plotting options setup
         # t_options
         self.t_options = QTableWidget()
         self.t_options.setRowCount(1)
@@ -37,15 +37,12 @@ class Window(QDialog):
         self.t_options.setItem(0,2, QTableWidgetItem('colour'))
         self.t_options.setItem(0,3, QTableWidgetItem('pattern'))
         self.t_options.setItem(0,4, QTableWidgetItem('markersize'))
-
-
-        ### user input setup
         # buttons
         self.b_plot = QPushButton('Plot')
-        self.b_plot.clicked.connect(lambda: self.plot('no_curve'))
+        self.b_plot.clicked.connect(lambda: self.plot('just plot'))
         self.b_read = QPushButton('Read')
         self.b_read.clicked.connect(self.read)
-        # labels
+        # labels and textboxes
         self.l_path = QLabel('Path (drag and drop):')
         self.e_path = QLineEdit('chart.csv')
         self.l_delimiter = QLabel('Delimiter:')
@@ -57,60 +54,25 @@ class Window(QDialog):
         self.l_ylabel = QLabel('ylabel:')
         self.e_ylabel = QLineEdit('ylabel')
         self.l_legend = QLabel('Legend:')
+        # labels and checkboxes
         self.cb_legend = QCheckBox()
         self.cb_legend.setChecked(True)
-        # input_box
-        self.input_box = QVBoxLayout()
-        self.input_box.addWidget(self.t_options)
-        self.top_input_box = QHBoxLayout()
-        self.input_box.addLayout(self.top_input_box)
-        self.left_input_box = QVBoxLayout()
-        self.right_input_box = QVBoxLayout()
-        self.top_input_box.addLayout(self.left_input_box)
-        self.top_input_box.addLayout(self.right_input_box)
-        self.left_input_box.addWidget(self.b_plot)
-        self.right_input_box.addWidget(self.b_read)
-        self.left_input_box.addWidget(self.l_path)
-        self.right_input_box.addWidget(self.e_path)
-        self.left_input_box.addWidget(self.l_delimiter)
-        self.right_input_box.addWidget(self.e_delimiter)
-        self.left_input_box.addWidget(self.l_title)
-        self.right_input_box.addWidget(self.e_title)
-        self.left_input_box.addWidget(self.l_xlabel)
-        self.right_input_box.addWidget(self.e_xlabel)
-        self.left_input_box.addWidget(self.l_ylabel)
-        self.right_input_box.addWidget(self.e_ylabel)
-        self.left_input_box.addWidget(self.l_legend)
-        self.right_input_box.addWidget(self.cb_legend)
         
-
-        ### curve_fit setup
+        ### linear regression options setup
         # buttons
-        self.l_curve_calc = QLabel('Linear regression:')
-        self.b_curve_calc = QPushButton('Calculate fit')
-        self.b_curve_calc.clicked.connect(lambda: self.plot('calc_curve'))
+        self.l_plot_reg = QLabel('Linear regression:')
+        self.b_plot_reg = QPushButton('Calculate fit')
+        self.b_plot_reg.clicked.connect(lambda: self.plot('plot_reg'))
         # labels
-        self.l_expression = QLabel('Significant numbers:')
-        self.e_expression = QLineEdit('3')
-        self.l_y_curve = QLabel('y-axis (label):')
-        self.e_y_curve = QLineEdit('y1')
+        self.l_sig_num = QLabel('Significant numbers:')
+        self.e_sig_num = QLineEdit('3')
+        self.l_y_target = QLabel('y-axis (label):')
+        self.e_y_target = QLineEdit('y1')
         self.l_params = QLabel('Fit params:')
         self.e_params = QLineEdit('')
-        # input_box
-        self.left_input_box.addWidget(self.l_curve_calc)
-        self.right_input_box.addWidget(self.b_curve_calc)
-        self.left_input_box.addWidget(self.l_expression)
-        self.right_input_box.addWidget(self.e_expression)
-        self.left_input_box.addWidget(self.l_y_curve)
-        self.right_input_box.addWidget(self.e_y_curve)
-        self.left_input_box.addWidget(self.l_params)
-        self.right_input_box.addWidget(self.e_params)
-
-
-        ### error_label
+        
+        ### error label setup
         self.l_error = QLabel('Error: None')
-        self.input_box.addWidget(self.l_error)
-
 
         ### matplot setup
         # figure
@@ -119,23 +81,70 @@ class Window(QDialog):
         self.canvas = FigureCanvas(self.figure)
         # toolbar
         self.toolbar = NavigationToolbar(self.canvas, self)
-        # matplot_box
-        self.matplot_box = QVBoxLayout()
-        self.matplot_box.addWidget(self.canvas)
-        self.matplot_box.addWidget(self.toolbar)
 
-
-        ### spreadsheet setup
+        ### data spreadsheet setup
         # t_spread
         self.t_spread = QTableWidget()
+        
 
+        #####################################
+        ## t_settings #        #           ##
+        ##   input    #  plot  #  t_spread ##
+        ##    box     #        #           ##
+        #####################################
 
         ### layout setup
-        # layout
+        ## settings section
+        # create boxes
+        self.input_box = QVBoxLayout()
+        self.bottom_input_box = QHBoxLayout()
+        self.left_input_box = QVBoxLayout()
+        self.right_input_box = QVBoxLayout()
+        # box hierarchy
+        self.input_box.addWidget(self.t_options)
+        self.input_box.addLayout(self.bottom_input_box)
+        self.bottom_input_box.addLayout(self.left_input_box)
+        self.bottom_input_box.addLayout(self.right_input_box)
+        # left input box contents
+        self.left_input_box.addWidget(self.b_plot) # plot data
+        self.left_input_box.addWidget(self.l_path)
+        self.left_input_box.addWidget(self.l_delimiter)
+        self.left_input_box.addWidget(self.l_title)
+        self.left_input_box.addWidget(self.l_xlabel)
+        self.left_input_box.addWidget(self.l_ylabel)
+        self.left_input_box.addWidget(self.l_legend)
+        self.left_input_box.addWidget(self.l_plot_reg)
+        self.left_input_box.addWidget(self.l_sig_num)
+        self.left_input_box.addWidget(self.l_y_target)
+        self.left_input_box.addWidget(self.l_params)
+        # right input box contents
+        self.right_input_box.addWidget(self.b_read) # read from file
+        self.right_input_box.addWidget(self.e_path) # path to .csv file
+        self.right_input_box.addWidget(self.e_delimiter) # .csv file delimiter
+        self.right_input_box.addWidget(self.e_title) # plot title
+        self.right_input_box.addWidget(self.e_xlabel) # plot xlabel
+        self.right_input_box.addWidget(self.e_ylabel) # plot ylabel
+        self.right_input_box.addWidget(self.cb_legend) # legend toggle
+        self.right_input_box.addWidget(self.b_plot_reg) # plot with linear regression
+        self.right_input_box.addWidget(self.e_sig_num) # significant numbers *only* on legend
+        self.right_input_box.addWidget(self.e_y_target) # which function to target
+        self.right_input_box.addWidget(self.e_params) # regression parameters output
+        # error label
+        self.input_box.addWidget(self.l_error) # error output
+        ## matplot section
+        # box creation 
+        self.matplot_box = QVBoxLayout()
+        # add contents
+        self.matplot_box.addWidget(self.canvas)
+        self.matplot_box.addWidget(self.toolbar)
+        ## top layer section
+        # create top section
         self.layout = QHBoxLayout()
+        # add contents
         self.layout.addLayout(self.input_box)
         self.layout.addLayout(self.matplot_box)
         self.layout.addWidget(self.t_spread)
+        # set top layout
         self.setLayout(self.layout)
 
 
@@ -237,46 +246,10 @@ class Window(QDialog):
                 #                                                  colour                             label
                 handle_tab.append(mpatches.Patch(color=self.t_options.item(col+1,2).text(), label=self.data[0][col]))
         
-        # plot user fit
-        #if curve == 'plot_curve':
-        #    try:
-        #        temp_domain_index = domain_list.index(self.e_x_curve.text()) # get index of x domain
-        #        temp_y_index = self.data[0].index(self.e_y_curve.text()) # get index of y
-        #    except:
-        #            self.l_error.setText('missing domain')
-        #            return
-            
-        #    try:
-        #        temp_x = []
-        #        for row in range(self.row_count):
-        #            temp_x.append(float(self.data[row+1][temp_domain_index]))
-        #        temp_x = np.array(temp_x)
-        #    except:
-        #            self.l_error.setText('chart ValueError')
-        #            return
-
-        #    try:
-        #        temp_params = self.e_expression.text().split(', ') # user input
-        #        temp_params = [float(k) for k in temp_params]
-        #    except:
-        #            self.l_error.setText('params ValueError')
-        #            return
-        #    try:
-        #        temp_y = []
-        #        temp_y = temp_params[0] * temp_x + temp_params[1]
-        #    except:
-        #            self.l_error.setText('wrong params')
-        #            return
-            
-        #    #                            colour                                 pattern                         markersize
-        #    ax.plot(temp_x, temp_y, self.t_options.item(temp_y_index+1,2).text() + '-', ms = int(self.t_options.item(temp_y_index+1,4).text()))
-        #    #                                                  colour                              label
-        #    handle_tab.append(mpatches.Patch(color=self.t_options.item(temp_y_index+1,2).text(), label=self.data[0][temp_y_index] + ' fit test'))
-        
         # plot linear regression
-        if curve == 'calc_curve':
+        if curve == 'plot_reg':
             try:
-                temp_y_index = self.data[0].index(self.e_y_curve.text()) # get index of y
+                temp_y_index = self.data[0].index(self.e_y_target.text()) # get index of y
                 temp_domain_index = domain_list.index('x' + domain_list[temp_y_index][1:]) # get index of x domain
             except:
                     self.l_error.setText('missing domain')
@@ -296,11 +269,11 @@ class Window(QDialog):
         
             try:
                 slope, intercept, r_value, p_value, std_err = linregress(temp_x, temp_y)
-                significant_numbers = int(self.e_expression.text())
+                significant_numbers = int(self.e_sig_num.text())
                 rounded_slope =  round(slope, significant_numbers - int(m.floor(m.log10(abs(slope)))) - 1)
                 rounded_intercept =  round(intercept, significant_numbers - int(m.floor(m.log10(abs(intercept)))) - 1)
             except:
-                    self.l_error.setText('mismatched domain or wrong significant numbers')
+                    self.l_error.setText('regression error')
                     return
         
             #                            colour                                 pattern                         markersize
@@ -340,7 +313,7 @@ class Window(QDialog):
     def dropEvent(self, e):
         self.e_path.setText(e.mimeData().text()[8:])
         self.read()
-        self.plot('no curve')
+        self.plot('just plot')
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
