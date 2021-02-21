@@ -32,6 +32,7 @@ class Window(QDialog):
         self.t_options.setColumnCount(5)
         self.t_options.setVerticalHeaderLabels(['Options'])
         self.t_options.resizeColumnsToContents()
+        self.t_options.verticalHeader().sectionClicked.connect(self.onHeaderClicked)
         self.t_options.setItem(0,0, QTableWidgetItem('axis (x/y)'))
         self.t_options.setItem(0,1, QTableWidgetItem('domain'))
         self.t_options.setItem(0,2, QTableWidgetItem('colour'))
@@ -66,7 +67,7 @@ class Window(QDialog):
         # labels
         self.l_sig_num = QLabel('Significant numbers:')
         self.e_sig_num = QLineEdit('3')
-        self.l_y_target = QLabel('y-axis (label):')
+        self.l_y_target = QLabel('y-axis (click a label):')
         self.e_y_target = QLineEdit('y1')
         self.l_params = QLabel('Fit params:')
         self.e_params = QLineEdit('')
@@ -314,6 +315,10 @@ class Window(QDialog):
         self.e_path.setText(e.mimeData().text()[8:])
         self.read()
         self.plot('just plot')
+
+    def onHeaderClicked(self, row):
+        self.e_y_target.setText(self.t_options.verticalHeaderItem(row).text())
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
