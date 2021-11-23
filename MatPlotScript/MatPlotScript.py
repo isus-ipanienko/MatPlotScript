@@ -1,6 +1,6 @@
-﻿import sys
+import sys
 
-from PyQt5.QtWidgets import QDialog, QApplication, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QTableWidget, QTableWidgetItem, QLabel, QCheckBox
+from PyQt5.QtWidgets import QComboBox, QDialog, QApplication, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QTableWidget, QTableWidgetItem, QLabel, QCheckBox
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -167,12 +167,15 @@ class Window(QDialog):
                 for row in range(5):
                     for element in range(len(self.data)-1):
                         if row == 0:
-                            if element == 0:
-                                temp_item = QTableWidgetItem('x')
-                            else:
-                                temp_item = QTableWidgetItem('y')
+                            temp_item = QComboBox()
+                            temp_item.addItem('x')
+                            temp_item.addItem('y')
+                            if element != 0:
+                                temp_item.setCurrentText('y')
+                            self.t_options.setCellWidget(element+1, row, temp_item)
+                            continue
                         elif row == 1:
-                            temp_item = QTableWidgetItem('1')
+                            temp_item = QTableWidgetItem('a')
                         elif row == 2:
                             if element == 1:
                                 temp_item = QTableWidgetItem('b')
@@ -212,13 +215,13 @@ class Window(QDialog):
 
         # create an axis
         ax = self.figure.add_subplot(111)
-
+        
         # create domain map
         domain_list = []
         try:
             for col in range(self.col_count):
-                domain_list.append(self.t_options.item(col+1,0).text()+self.t_options.item(col+1,1).text()) 
-        except:
+                domain_list.append(str(self.t_options.cellWidget(col+1,0).currentText())+self.t_options.item(col+1,1).text()) 
+        except Exception as e:
                 self.l_error.setText('no data')
                 return
         
