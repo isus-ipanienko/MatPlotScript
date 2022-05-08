@@ -1,5 +1,5 @@
 # MatPlotScript
-a script for creating simple plots from .csv
+a GUI app for creating simple plots from .csv
 
 ## External dependencies:
 - matplotlib
