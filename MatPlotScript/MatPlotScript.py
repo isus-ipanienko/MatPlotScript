@@ -19,8 +19,8 @@ class Window(QDialog):
         super(Window, self).__init__(parent)
         self.setAcceptDrops(True)
         self.setWindowTitle("MatPlotScript")
-        self.row_count = None
-        self.col_count = None
+        self.dataSetLength = None
+        self.dataSetCount = None
         self.data = [[],[]]
         self.y_fit = []
 
@@ -78,21 +78,19 @@ class Window(QDialog):
         ### matplot setup
         # figure
         self.figure = plt.figure()
+        self.fft_figure = plt.figure()
         # canvas
         self.canvas = FigureCanvas(self.figure)
+        self.fft_canvas = FigureCanvas(self.fft_figure)
         # toolbar
         self.toolbar = NavigationToolbar(self.canvas, self)
+        self.fft_toolbar = NavigationToolbar(self.fft_canvas, self)
 
-        ### data spreadsheet setup
-        # t_spread
-        self.t_spread = QTableWidget()
-        
-
-        #####################################
-        ## t_settings #        #           ##
-        ##   input    #  plot  #  t_spread ##
-        ##    box     #        #           ##
-        #####################################
+        ##########################
+        ## t_settings #         ##
+        ##   input    #  plots  ##
+        ##    box     #         ##
+        ##########################
 
         ### layout setup
         ## settings section
@@ -134,103 +132,101 @@ class Window(QDialog):
         self.input_box.addWidget(self.l_error) # error output
         ## matplot section
         # box creation 
+        self.plt_box = QVBoxLayout()
         self.matplot_box = QVBoxLayout()
+        self.fft_matplot_box = QVBoxLayout()
+        self.plt_box.addLayout(self.matplot_box)
+        self.plt_box.addLayout(self.fft_matplot_box)
         # add contents
         self.matplot_box.addWidget(self.canvas)
         self.matplot_box.addWidget(self.toolbar)
+        self.fft_matplot_box.addWidget(self.fft_canvas)
+        self.fft_matplot_box.addWidget(self.fft_toolbar)
         ## top layer section
         # create top section
         self.layout = QHBoxLayout()
         # add contents
         self.layout.addLayout(self.input_box)
-        self.layout.addLayout(self.matplot_box)
-        self.layout.addWidget(self.t_spread)
+        self.layout.addLayout(self.plt_box)
         # set top layout
         self.setLayout(self.layout)
 
+    def filter_data(self, unfiltered_data):
+        filtered_data = []
+        for entry in unfiltered_data:
+            if entry:
+                filtered_data.append(entry)
+        for entry in range(1, len(filtered_data)):
+            for item in range(len(filtered_data[0])):
+                filtered_data[entry][item] = filtered_data[entry][item].replace(' ','')
+        return filtered_data
 
     def read(self):
         try:
             with open(self.e_path.text()) as csv_file:
                 csv_reader = csv.reader(csv_file, delimiter=self.e_delimiter.text())
-                self.data = list(csv_reader)
-                for row in range(1, len(self.data)):
-                    for col in range(len(self.data[0])):
-                        self.data[row][col] = self.data[row][col].replace(' ','')
+                unfiltered_data = list(csv_reader)
 
-                self.t_spread.setRowCount(len(self.data)-1)
-                self.row_count = len(self.data) - 1
-                self.t_spread.setColumnCount(len(self.data[0]))
-                self.col_count = len(self.data[0])
-                self.t_options.setRowCount(len(self.data[0])+1)
+            self.data = self.filter_data(unfiltered_data)
+            self.dataSetLength = len(self.data) - 1
+            self.dataSetCount = len(self.data[0])
+            self.t_options.setRowCount(self.dataSetCount + 1) # create a row for each data set + a row for descriptions
 
-                for row in range(5):
-                    for element in range(len(self.data)-1):
-                        if row == 0:
-                            temp_item = QComboBox()
-                            temp_item.addItem('x')
-                            temp_item.addItem('y')
-                            if element != 0:
-                                temp_item.setCurrentText('y')
-                            self.t_options.setCellWidget(element+1, row, temp_item)
-                            continue
-                        elif row == 1:
-                            temp_item = QTableWidgetItem('a')
-                        elif row == 2:
-                            if element == 1:
-                                temp_item = QTableWidgetItem('b')
-                            elif element == 2:
-                                temp_item = QTableWidgetItem('r')
-                            elif element == 3:
-                                temp_item = QTableWidgetItem('y')
-                            elif element == 4:
-                                temp_item = QTableWidgetItem('m')
-                            else:
-                                temp_item = QTableWidgetItem('g')
-                        elif row == 3:
-                            temp_item = QTableWidgetItem('.-')
+            for option in range(5):
+                for dataSet in range(self.dataSetCount):
+                    if option == 0: # sets this set as x or y
+                        temp_item = QComboBox()
+                        temp_item.addItem('x')
+                        temp_item.addItem('y')
+                        if dataSet != 0:
+                            temp_item.setCurrentText('y')
+                        self.t_options.setCellWidget(dataSet+1, option, temp_item)
+                        continue
+                    elif option == 1: # domain id option
+                        temp_item = 'a'
+                    elif option == 2: # plot colour option
+                        if dataSet == 1:
+                            temp_item = 'b'
+                        elif dataSet == 2:
+                            temp_item = 'r'
+                        elif dataSet == 3:
+                            temp_item = 'y'
+                        elif dataSet == 4:
+                            temp_item = 'm'
                         else:
-                            temp_item = QTableWidgetItem('10')
+                            temp_item = 'g'
+                    elif option == 3: # plot line style option
+                        temp_item = '.-'
+                    else: # plot line thickness option
+                        temp_item = '10'
+                    self.t_options.setItem(dataSet+1, option, QTableWidgetItem(temp_item))
 
-                        self.t_options.setItem(element+1, row, temp_item)
-
-
-                for row in range(len(self.data)):
-                    if row == 0:
-                        self.t_spread.setHorizontalHeaderLabels(self.data[0])
-                        self.t_options.setVerticalHeaderLabels(['Options'] + self.data[0])
-                    else:
-                        for element in range(len(self.data[0])):
-                            self.t_spread.setItem(row-1,element, QTableWidgetItem(self.data[row][element]))
-        except:
-            self.l_error.setText('wrong file name')
+            if self.dataSetCount:
+                self.t_options.setVerticalHeaderLabels(['Options'] + self.data[0])
+        except Exception as e:
+            self.l_error.setText(str(e))
             return
-        
-
 
     def plot(self, curve):
-
-        # clear figure
         self.figure.clear()
-
-        # create an axis
+        self.fft_figure.clear()
         ax = self.figure.add_subplot(111)
-        
-        # create domain map
-        domain_list = []
+        fft_ax = self.fft_figure.add_subplot(111)
+
+        domains = []
         try:
-            for col in range(self.col_count):
-                domain_list.append(str(self.t_options.cellWidget(col+1,0).currentText())+self.t_options.item(col+1,1).text()) 
+            for col in range(self.dataSetCount):
+                domains.append(str(self.t_options.cellWidget(col+1,0).currentText())+self.t_options.item(col+1,1).text()) 
         except Exception as e:
                 self.l_error.setText('no data')
                 return
-        
+
         # plot data
         handle_tab = []
-        for col in range(self.col_count):
-            if domain_list[col][0] == 'y':
+        for col in range(self.dataSetCount):
+            if domains[col][0] == 'y':
                 try:
-                    temp_domain_index = domain_list.index('x' + domain_list[col][1:]) # get index of x domain
+                    temp_domain_index = domains.index('x' + domains[col][1:]) # get index of x domain
                 except:
                     self.l_error.setText('missing domain')
                     return
@@ -238,7 +234,7 @@ class Window(QDialog):
                 temp_y = []
                 temp_x = []
                 try:
-                    for row in range(self.row_count):
+                    for row in range(self.dataSetLength):
                         temp_y.append(float(self.data[row+1][col]))
                         temp_x.append(float(self.data[row+1][temp_domain_index]))
                 except:
@@ -249,12 +245,18 @@ class Window(QDialog):
                 ax.plot(temp_x, temp_y, self.t_options.item(col+1,2).text() + self.t_options.item(col+1,3).text(), ms = int(self.t_options.item(col+1,4).text()))
                 #                                                  colour                             label
                 handle_tab.append(mpatches.Patch(color=self.t_options.item(col+1,2).text(), label=self.data[0][col]))
-        
+
+                ft = abs(np.fft.fft(temp_y))
+                ft = 20 * np.log10(np.fft.fftshift(ft))
+                freq = np.fft.fftfreq(len(temp_y))
+                freq = np.fft.fftshift(freq)
+                fft_ax.plot(freq, ft, self.t_options.item(col+1,2).text() + self.t_options.item(col+1,3).text(), ms = int(self.t_options.item(col+1,4).text()))
+
         # plot linear regression
         if curve == 'plot_reg':
             try:
                 temp_y_index = self.data[0].index(self.e_y_target.text()) # get index of y
-                temp_domain_index = domain_list.index('x' + domain_list[temp_y_index][1:]) # get index of x domain
+                temp_domain_index = domains.index('x' + domains[temp_y_index][1:]) # get index of x domain
             except:
                     self.l_error.setText('missing domain')
                     return
@@ -262,7 +264,7 @@ class Window(QDialog):
             temp_y = []
             temp_x = []
             try:
-                for row in range(self.row_count):
+                for row in range(self.dataSetLength):
                     temp_y.append(float(self.data[row+1][temp_y_index]))
                     temp_x.append(float(self.data[row+1][temp_domain_index]))
                 temp_y = np.array(temp_y)
@@ -307,26 +309,26 @@ class Window(QDialog):
         if self.cb_legend.isChecked():
             ax.legend(handles=handle_tab)
         ax.grid(True)
-        
+        fft_ax.grid(True)
+    
         # refresh canvas
         self.canvas.draw()
+        self.fft_canvas.draw()
 
     def dragEnterEvent(self, e):
         e.accept()
 
     def dropEvent(self, e):
-        self.e_path.setText(e.mimeData().text()[8:])
+        print(e.mimeData().text())
+        self.e_path.setText(e.mimeData().text()[7:])
         self.read()
         self.plot('just plot')
 
     def onHeaderClicked(self, row):
         self.e_y_target.setText(self.t_options.verticalHeaderItem(row).text())
 
-
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-
     main = Window()
     main.show()
-
     sys.exit(app.exec_())
